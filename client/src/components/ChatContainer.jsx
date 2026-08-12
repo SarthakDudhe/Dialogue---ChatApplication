@@ -3,6 +3,7 @@ import assets from "../assets/assets"
 import { formatMessageTime, formatDateHeader, compressImage } from '../lib/utils'
 import { scanForSecrets } from '../lib/dlpScanner'
 import AICatchUpModal from './AICatchUpModal'
+import VoiceRecorder from './VoiceRecorder'
 import { ChatContext } from '../../context/ChatContext'
 import { AuthContext } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -38,6 +39,7 @@ const ChatContainer = () => {
   const[input,setInput]=useState('')
   const[dlpWarning,setDlpWarning]=useState(null)
   const[isCatchUpOpen,setIsCatchUpOpen]=useState(false)
+  const[isRecordingVoice,setIsRecordingVoice]=useState(false)
   const[isOffline,setIsOffline]=useState(!navigator.onLine)
   const[showEmojiPicker,setShowEmojiPicker]=useState(false)
   const[contextMenu,setContextMenu]=useState(null)
@@ -568,40 +570,63 @@ const ChatContainer = () => {
         )}
 
         <div className='flex items-center gap-3.5 max-w-5xl mx-auto'>
-          <div className='flex-1 flex items-center bg-white border border-[#E8E8E2] px-4.5 rounded-xl transition-all focus-within:border-[#1C2B3A] focus-within:ring-1 focus-within:ring-[#1C2B3A]'>
-            <button onClick={()=>setShowEmojiPicker(prev=>!prev)} className='cursor-pointer mr-3 opacity-70 hover:opacity-100 hover:scale-105 transition-all p-1 flex items-center justify-center' title='Emoji'>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-[#6B7280]">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
-              </svg>
-            </button>
-            <input 
-              onChange={handleInputChange} 
-              value={input} 
-              onKeyDown={(e) => {
-                if (e.key === 'Enter' && !e.shiftKey) {
-                  e.preventDefault();
-                  handlesendMessage(e);
-                }
+          {isRecordingVoice ? (
+            <VoiceRecorder
+              onSendVoiceMemo={async (memo) => {
+                setIsRecordingVoice(false);
+                await sendMessage({ text: `🎙️ Encrypted Voice Memo (${memo.duration}s)` });
+                toast.success("Voice memo encrypted & sent!", { icon: "🎙️" });
               }}
-              type="text" 
-              placeholder='Type your message here...' 
-              className='flex-1 text-sm py-3 bg-transparent border-none outline-none text-[#1A1A1A] placeholder-[#9CA3AF]'
+              onCancel={() => setIsRecordingVoice(false)}
             />
-            <input type="file" onChange={handleSendImage} id='image' accept='image/png, image/jpeg' hidden/>
-            <label htmlFor="image" className='cursor-pointer opacity-70 hover:opacity-100 hover:scale-105 transition-all p-1 flex items-center justify-center'>
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-[#6B7280]">
-                <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
-              </svg>
-            </label>
-          </div>
-          <button 
-            onClick={handlesendMessage} 
-            className='w-11 h-11 rounded-xl bg-[#1C2B3A] hover:bg-[#253545] flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all flex-shrink-0'
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-white">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
-            </svg>
-          </button>
+          ) : (
+            <>
+              <div className='flex-1 flex items-center bg-white border border-[#E8E8E2] px-4.5 rounded-xl transition-all focus-within:border-[#1C2B3A] focus-within:ring-1 focus-within:ring-[#1C2B3A]'>
+                <button onClick={()=>setShowEmojiPicker(prev=>!prev)} className='cursor-pointer mr-3 opacity-70 hover:opacity-100 hover:scale-105 transition-all p-1 flex items-center justify-center' title='Emoji'>
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-[#6B7280]">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15.182 15.182a4.5 4.5 0 0 1-6.364 0M21 12a9 9 0 1 1-18 0 9 9 0 0 1 18 0ZM9.75 9.75c0 .414-.168.75-.375.75S9 10.164 9 9.75 9.168 9 9.375 9s.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Zm5.625 0c0 .414-.168.75-.375.75s-.375-.336-.375-.75.168-.75.375-.75.375.336.375.75Zm-.375 0h.008v.015h-.008V9.75Z" />
+                  </svg>
+                </button>
+                <input 
+                  onChange={handleInputChange} 
+                  value={input} 
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' && !e.shiftKey) {
+                      e.preventDefault();
+                      handlesendMessage(e);
+                    }
+                  }}
+                  type="text" 
+                  placeholder='Type your message here...' 
+                  className='flex-1 text-sm py-3 bg-transparent border-none outline-none text-[#1A1A1A] placeholder-[#9CA3AF]'
+                />
+                <input type="file" onChange={handleSendImage} id='image' accept='image/png, image/jpeg' hidden/>
+                <label htmlFor="image" className='cursor-pointer opacity-70 hover:opacity-100 hover:scale-105 transition-all p-1 flex items-center justify-center mr-2' title="Attach Image">
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-[#6B7280]">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="m2.25 15.75 5.159-5.159a2.25 2.25 0 0 1 3.182 0l5.159 5.159m-1.5-1.5 1.409-1.409a2.25 2.25 0 0 1 3.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 0 0 1.5-1.5V6a1.5 1.5 0 0 0-1.5-1.5H3.75A1.5 1.5 0 0 0 2.25 6v12a1.5 1.5 0 0 0 1.5 1.5Zm10.5-11.25h.008v.008h-.008V8.25Zm.375 0a.375.375 0 1 1-.75 0 .375.375 0 0 1 .75 0Z" />
+                  </svg>
+                </label>
+                <button
+                  type="button"
+                  onClick={() => setIsRecordingVoice(true)}
+                  className='cursor-pointer opacity-70 hover:opacity-100 hover:scale-105 transition-all p-1 flex items-center justify-center'
+                  title="Record Voice Memo"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-5 h-5 text-[#6B7280]">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 18.75a6 6 0 0 0 6-6v-1.5m-6 7.5a6 6 0 0 1-6-6v-1.5m6 7.5v3.75m-3.75 0h7.5M12 15.75a3 3 0 0 0 3-3V4.5a3 3 0 0 0-6 0v8.25a3 3 0 0 0 3 3Z" />
+                  </svg>
+                </button>
+              </div>
+              <button 
+                onClick={handlesendMessage} 
+                className='w-11 h-11 rounded-xl bg-[#1C2B3A] hover:bg-[#253545] flex items-center justify-center shadow-md hover:scale-105 active:scale-95 transition-all flex-shrink-0 cursor-pointer'
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="1.5" stroke="currentColor" className="w-4 h-4 text-white">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 12 3.269 3.125A59.769 59.769 0 0 1 21.485 12 59.768 59.768 0 0 1 3.27 20.875L5.999 12Zm0 0h7.5" />
+                </svg>
+              </button>
+            </>
+          )}
         </div>
       </div>
 
