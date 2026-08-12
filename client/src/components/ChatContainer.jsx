@@ -2,6 +2,7 @@ import React, { useContext, useEffect, useRef, useState } from 'react'
 import assets from "../assets/assets"
 import { formatMessageTime, formatDateHeader, compressImage } from '../lib/utils'
 import { scanForSecrets } from '../lib/dlpScanner'
+import AICatchUpModal from './AICatchUpModal'
 import { ChatContext } from '../../context/ChatContext'
 import { AuthContext } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -36,6 +37,7 @@ const ChatContainer = () => {
 
   const[input,setInput]=useState('')
   const[dlpWarning,setDlpWarning]=useState(null)
+  const[isCatchUpOpen,setIsCatchUpOpen]=useState(false)
   const[showEmojiPicker,setShowEmojiPicker]=useState(false)
   const[contextMenu,setContextMenu]=useState(null)
   const[editingMsg,setEditingMsg]=useState(null)
@@ -277,6 +279,13 @@ const ChatContainer = () => {
           </div>
         </div>
         <div className='flex items-center gap-3'>
+          <button 
+            onClick={() => setIsCatchUpOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E2] text-xs font-bold text-[#1C2B3A] hover:bg-[#1C2B3A] hover:text-white shadow-sm transition-all cursor-pointer"
+            title="AI Catch-Up Matrix"
+          >
+            <span>⚡ AI Catch Up</span>
+          </button>
           <button onClick={()=>setSelectedUser(null)} className='md:hidden p-2 rounded-lg hover:bg-black/5 text-[#6B7280] hover:text-[#1A1A1A] transition-all flex items-center justify-center' title='Back'>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -774,6 +783,21 @@ const ChatContainer = () => {
           </div>
         </div>
       )}
+
+      {/* AI Catch-Up Matrix Modal */}
+      <AICatchUpModal
+        isOpen={isCatchUpOpen}
+        onClose={() => setIsCatchUpOpen(false)}
+        messages={messages}
+        authUser={authUser}
+        onJumpToMessage={(msgId) => {
+          setHighlightMessageId(msgId);
+          const elem = document.getElementById(`msg-${msgId}`);
+          if (elem) {
+            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }}
+      />
     </div>
   ):(
     <div className='flex-1 flex flex-col items-center justify-center gap-4 text-[#6B7280] bg-[#F5F5F0] max-md:hidden'>
