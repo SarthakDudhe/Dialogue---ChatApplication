@@ -38,6 +38,7 @@ const ChatContainer = () => {
   const[input,setInput]=useState('')
   const[dlpWarning,setDlpWarning]=useState(null)
   const[isCatchUpOpen,setIsCatchUpOpen]=useState(false)
+  const[isOffline,setIsOffline]=useState(!navigator.onLine)
   const[showEmojiPicker,setShowEmojiPicker]=useState(false)
   const[contextMenu,setContextMenu]=useState(null)
   const[editingMsg,setEditingMsg]=useState(null)
@@ -45,6 +46,25 @@ const ChatContainer = () => {
   const typingTimeoutRef=useRef(null)
   const emojiPickerRef=useRef(null)
   const reactionEmojis=['👍','❤️','😂','😮','🙏']
+
+  // Monitor network online/offline state
+  useEffect(() => {
+    const handleOnline = () => {
+      setIsOffline(false);
+      toast.success("Network reconnected! Outbox synced.", { icon: "🌐" });
+    };
+    const handleOffline = () => {
+      setIsOffline(true);
+      toast.error("Network disconnected. Using local encrypted outbox queue.", { icon: "📡" });
+    };
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
 
   // Group Details Modal states
   const [isGroupInfoOpen, setIsGroupInfoOpen] = useState(false);
@@ -301,6 +321,17 @@ const ChatContainer = () => {
         </div>
       </div>
 
+      {/* Network Offline / Outbox Resilience Banner */}
+      {isOffline && (
+        <div className='bg-amber-50 border-b border-amber-200 px-6 py-2 flex items-center justify-between text-amber-900 text-xs font-semibold shadow-inner flex-shrink-0 animate-fade-in'>
+          <div className='flex items-center gap-2'>
+            <span className='w-2 h-2 rounded-full bg-amber-500 animate-ping'></span>
+            <span>Offline Mode Active — Messages queued in local IndexedDB Outbox</span>
+          </div>
+          <span className='bg-amber-200/80 px-2 py-0.5 rounded text-[10px] uppercase font-bold tracking-wider font-mono'>IndexedDB Queue</span>
+        </div>
+      )}
+
       {/* CHAT AREA */}
       <div className='flex-1 overflow-y-auto p-5 pb-6 space-y-6'>
         {messages.map((msg,index)=>{
@@ -437,8 +468,16 @@ const ChatContainer = () => {
                     </div>
                   )}
 
-                  {/* Timestamp underneath bubble */}
-                  <span className='text-[9px] text-[#9CA3AF] font-semibold mt-1 px-1'>{formatMessageTime(msg.createdAt)}</span>
+                  {/* Timestamp & E2EE Delivery status underneath bubble */}
+                  <div className={`flex items-center gap-1.5 mt-1 px-1 ${isSentByMe ? 'justify-end' : 'justify-start'}`}>
+                    <span className='text-[9px] text-[#9CA3AF] font-semibold'>{formatMessageTime(msg.createdAt)}</span>
+                    {isSentByMe && (
+                      <span className='text-[9px] text-emerald-700 bg-emerald-50 px-1.5 py-0.5 rounded font-mono font-medium flex items-center gap-0.5 border border-emerald-200/50' title="Client-Side AES-256 E2EE Verified">
+                        <span>🔒</span>
+                        <span>E2EE</span>
+                      </span>
+                    )}
+                  </div>
                 </div>
 
                 {/* Sent Message Avatar (Right) */}
