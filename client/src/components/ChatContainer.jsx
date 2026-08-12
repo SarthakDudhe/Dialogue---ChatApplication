@@ -1,6 +1,7 @@
 import React, { useContext, useEffect, useRef, useState } from 'react'
 import assets from "../assets/assets"
 import { formatMessageTime, formatDateHeader, compressImage } from '../lib/utils'
+import { scanForSecrets } from '../lib/dlpScanner'
 import { ChatContext } from '../../context/ChatContext'
 import { AuthContext } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -34,6 +35,7 @@ const ChatContainer = () => {
   const {authUser,onlineUser} =useContext(AuthContext);
 
   const[input,setInput]=useState('')
+  const[dlpWarning,setDlpWarning]=useState(null)
   const[showEmojiPicker,setShowEmojiPicker]=useState(false)
   const[contextMenu,setContextMenu]=useState(null)
   const[editingMsg,setEditingMsg]=useState(null)
@@ -155,9 +157,15 @@ const ChatContainer = () => {
     return ()=>document.removeEventListener('mousedown',handleClickOutside)
   },[])
 
-  //Handle input change with typing indicator
+  //Handle input change with typing indicator and real-time DLP secret scan
   const handleInputChange=(e)=>{
-    setInput(e.target.value)
+    const val = e.target.value;
+    setInput(val)
+    
+    // Live DLP secret scan
+    const scan = scanForSecrets(val);
+    setDlpWarning(scan.hasSecrets ? scan : null);
+
     if(selectedUser){
       emitTyping(selectedUser._id)
       if(typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
@@ -171,12 +179,30 @@ const ChatContainer = () => {
   const handlesendMessage=async(e)=>{
     e.preventDefault();
     if (input.trim() ==="")return null;
+
+    // Final DLP audit before encryption & sending
+    const scan = scanForSecrets(input.trim());
+    let finalPayload = input.trim();
+    if (scan.hasSecrets) {
+      toast.custom((t) => (
+        <div className="bg-[#1C2B3A] text-white px-4 py-3 rounded-xl shadow-xl border border-red-500/30 flex items-center gap-3">
+          <span className="text-lg">🛡️</span>
+          <div>
+            <p className="text-xs font-bold text-red-400">Secret Detected & Auto-Redacted</p>
+            <p className="text-[11px] text-gray-300">Prevented raw leak of {scan.findings[0]?.type}</p>
+          </div>
+        </div>
+      ), { duration: 4000 });
+      finalPayload = scan.cleanText;
+    }
+
     if(selectedUser){
       emitStopTyping(selectedUser._id)
       if(typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     }
-    await sendMessage({text:input.trim()});
+    await sendMessage({text: finalPayload});
     setInput('')
+    setDlpWarning(null)
   }
 
   //Handle sending a image
@@ -449,6 +475,32 @@ const ChatContainer = () => {
               </div>
             </div>
             <button onClick={()=>setReplyingTo(null)} className='text-[#6B7280] hover:text-[#1A1A1A] ml-2 text-md cursor-pointer p-1'>✕</button>
+          </div>
+        )}
+
+        {/* DLP Secret Shield Warning Alert */}
+        {dlpWarning && dlpWarning.hasSecrets && (
+          <div className='flex items-center justify-between bg-red-50 border border-red-200 rounded-xl px-4 py-2.5 mb-3 text-xs text-red-900 shadow-sm max-w-5xl mx-auto animate-fade-in'>
+            <div className='flex items-center gap-2.5 min-w-0 text-left'>
+              <span className='text-base animate-pulse'>🛡️</span>
+              <div>
+                <p className='font-bold text-red-700 flex items-center gap-1.5'>
+                  <span>Security Shield Alert:</span>
+                  <span className='bg-red-200/60 px-1.5 py-0.5 rounded text-[10px] uppercase tracking-wide font-mono'>{dlpWarning.findings[0]?.type}</span>
+                </p>
+                <p className='text-red-600/90 text-[11px] mt-0.5'>Raw sensitive secrets detected in input text. Encrypting raw secrets exposes tokens to participants.</p>
+              </div>
+            </div>
+            <button
+              onClick={() => {
+                setInput(dlpWarning.cleanText);
+                setDlpWarning(null);
+                toast.success("Secrets redacted automatically!");
+              }}
+              className='ml-3 bg-red-600 hover:bg-red-700 text-white font-medium px-3 py-1.5 rounded-lg shadow transition-all flex-shrink-0 cursor-pointer text-[11px]'
+            >
+              🔒 Auto-Redact & Encrypt
+            </button>
           </div>
         )}
         
