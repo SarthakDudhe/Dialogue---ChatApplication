@@ -5,6 +5,7 @@ import { scanForSecrets } from '../lib/dlpScanner'
 import { translateText } from '../lib/translator'
 import AICatchUpModal from './AICatchUpModal'
 import MediaVaultModal from './MediaVaultModal'
+import PinnedMessagesModal from './PinnedMessagesModal'
 import { ChatContext } from '../../context/ChatContext'
 import { AuthContext } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -41,6 +42,8 @@ const ChatContainer = () => {
   const[dlpWarning,setDlpWarning]=useState(null)
   const[isCatchUpOpen,setIsCatchUpOpen]=useState(false)
   const[isVaultOpen,setIsVaultOpen]=useState(false)
+  const[isPinnedModalOpen,setIsPinnedModalOpen]=useState(false)
+  const[pinnedIds,setPinnedIds]=useState([])
   const[isOffline,setIsOffline]=useState(!navigator.onLine)
   const[translatedMessages,setTranslatedMessages]=useState({})
   const[showEmojiPicker,setShowEmojiPicker]=useState(false)
@@ -76,6 +79,25 @@ const ChatContainer = () => {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupAvatar, setNewGroupAvatar] = useState("");
   const [selectedAddUsers, setSelectedAddUsers] = useState([]);
+
+  // Sync pinned messages per room
+  useEffect(() => {
+    if (selectedUser?._id) {
+      const saved = localStorage.getItem("pinned_msgs_" + selectedUser._id);
+      setPinnedIds(saved ? JSON.parse(saved) : []);
+    }
+  }, [selectedUser]);
+
+  const togglePinMessage = (msgId) => {
+    if (!selectedUser?._id) return;
+    setPinnedIds((prev) => {
+      const exists = prev.includes(msgId);
+      const updated = exists ? prev.filter((id) => id !== msgId) : [...prev, msgId];
+      localStorage.setItem("pinned_msgs_" + selectedUser._id, JSON.stringify(updated));
+      toast.success(exists ? "Message unpinned" : "Message pinned to channel banner!", { icon: "📌" });
+      return updated;
+    });
+  };
 
   // Sync edit states when group changes
   useEffect(() => {
@@ -317,6 +339,19 @@ const ChatContainer = () => {
           >
             <span>📁 Vault</span>
           </button>
+          <button 
+            onClick={() => setIsPinnedModalOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E2] text-xs font-bold text-[#1C2B3A] hover:bg-[#1C2B3A] hover:text-white shadow-sm transition-all cursor-pointer relative"
+            title="Pinned Messages"
+          >
+            <span>📌 Pinned</span>
+            {pinnedIds.length > 0 && (
+              <span className="bg-[#1C2B3A] text-white text-[10px] px-1.5 py-0.2 rounded-full font-bold">
+                {pinnedIds.length}
+              </span>
+            )}
+          </button>
+
           <button onClick={()=>setSelectedUser(null)} className='md:hidden p-2 rounded-lg hover:bg-black/5 text-[#6B7280] hover:text-[#1A1A1A] transition-all flex items-center justify-center' title='Back'>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M15.75 19.5 8.25 12l7.5-7.5" />
@@ -331,6 +366,29 @@ const ChatContainer = () => {
           )}
         </div>
       </div>
+
+      {/* Top Pinned Message Banner */}
+      {pinnedIds.length > 0 && (() => {
+        const latestPinnedMsg = messages.find(m => m._id === pinnedIds[pinnedIds.length - 1]);
+        if (!latestPinnedMsg) return null;
+        return (
+          <div 
+            onClick={() => {
+              setHighlightMessageId(latestPinnedMsg._id);
+              const elem = document.getElementById(`msg-${latestPinnedMsg._id}`);
+              if (elem) elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }}
+            className='bg-blue-50/90 border-b border-blue-200 px-6 py-2 flex items-center justify-between text-blue-900 text-xs font-medium cursor-pointer hover:bg-blue-100/90 transition-all flex-shrink-0'
+          >
+            <div className='flex items-center gap-2 truncate'>
+              <span className='text-sm'>📌</span>
+              <span className='font-bold text-[#1C2B3A]'>Pinned:</span>
+              <span className='truncate'>{latestPinnedMsg.text || '🖼️ Photo'}</span>
+            </div>
+            <span className='text-[10px] font-bold text-[#1C2B3A] uppercase tracking-wider bg-blue-200/60 px-2 py-0.5 rounded'>Jump ➔</span>
+          </div>
+        );
+      })()}
 
       {/* Network Offline / Outbox Resilience Banner */}
       {isOffline && (
@@ -377,6 +435,14 @@ const ChatContainer = () => {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M9 15 3 9m0 0 6-6M3 9h12a6 6 0 0 1 0 12h-3" />
                     </svg>
                     Reply
+                  </button>
+                  <button 
+                    onClick={() => togglePinMessage(msg._id)} 
+                    className='p-1 rounded text-[#6B7280] hover:text-[#1C2B3A] hover:bg-[#F5F5F0] text-[10px] transition-colors cursor-pointer flex items-center gap-1' 
+                    title='Pin Message'
+                  >
+                    <span>📌</span>
+                    <span>{pinnedIds.includes(msg._id) ? 'Unpin' : 'Pin'}</span>
                   </button>
                   {msg.text && (
                     <button 
@@ -883,6 +949,22 @@ const ChatContainer = () => {
         onClose={() => setIsVaultOpen(false)}
         messages={messages}
         selectedUser={selectedUser}
+      />
+
+      {/* Pinned & Bookmarked Messages Modal */}
+      <PinnedMessagesModal
+        isOpen={isPinnedModalOpen}
+        onClose={() => setIsPinnedModalOpen(false)}
+        pinnedMessages={messages.filter((m) => pinnedIds.includes(m._id))}
+        onUnpinMessage={(msgId) => togglePinMessage(msgId)}
+        getSenderName={getSenderName}
+        onJumpToMessage={(msgId) => {
+          setHighlightMessageId(msgId);
+          const elem = document.getElementById(`msg-${msgId}`);
+          if (elem) {
+            elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
+          }
+        }}
       />
     </div>
   ):(
