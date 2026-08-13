@@ -2,7 +2,6 @@ import React, { useContext, useEffect, useRef, useState } from 'react'
 import assets from "../assets/assets"
 import { formatMessageTime, formatDateHeader, compressImage } from '../lib/utils'
 import { scanForSecrets } from '../lib/dlpScanner'
-import { playSendSound, playReceiveSound, playAlertSound } from '../lib/soundFx'
 import { translateText } from '../lib/translator'
 import AICatchUpModal from './AICatchUpModal'
 import MediaVaultModal from './MediaVaultModal'
@@ -191,9 +190,6 @@ const ChatContainer = () => {
     
     // Live DLP secret scan
     const scan = scanForSecrets(val);
-    if (scan.hasSecrets && !dlpWarning) {
-      playAlertSound();
-    }
     setDlpWarning(scan.hasSecrets ? scan : null);
 
     if(selectedUser){
@@ -214,7 +210,6 @@ const ChatContainer = () => {
     const scan = scanForSecrets(input.trim());
     let finalPayload = input.trim();
     if (scan.hasSecrets) {
-      playAlertSound();
       toast.custom((t) => (
         <div className="bg-[#1C2B3A] text-white px-4 py-3 rounded-xl shadow-xl border border-red-500/30 flex items-center gap-3">
           <span className="text-lg">🛡️</span>
@@ -232,7 +227,6 @@ const ChatContainer = () => {
       if(typingTimeoutRef.current) clearTimeout(typingTimeoutRef.current)
     }
     await sendMessage({text: finalPayload});
-    playSendSound();
     setInput('')
     setDlpWarning(null)
   }
