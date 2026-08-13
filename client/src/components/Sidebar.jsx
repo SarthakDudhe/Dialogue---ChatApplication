@@ -50,13 +50,27 @@ const Sidebar = () => {
 
   const chatbotScrollEndRef = useRef(null);
 
+  const [filterTab, setFilterTab] = useState("all"); // "all" | "direct" | "groups" | "unread"
+
   const groupConversations = conversations.filter(c => c.isGroup);
-  const filteredGroups = input 
+
+  let filteredGroups = input 
     ? groupConversations.filter(c => c.groupName.toLowerCase().includes(input.toLowerCase()))
     : groupConversations;
-  const filteredUsers = input 
+
+  let filteredUsers = input 
     ? users.filter(user => user.fullname.toLowerCase().includes(input.toLowerCase()))
     : users;
+
+  // Apply tab filters
+  if (filterTab === "groups") {
+    filteredUsers = [];
+  } else if (filterTab === "direct") {
+    filteredGroups = [];
+  } else if (filterTab === "unread") {
+    filteredUsers = filteredUsers.filter(u => unseenMessages[u._id] > 0);
+    filteredGroups = filteredGroups.filter(g => unseenMessages[g._id] > 0);
+  }
 
   useEffect(()=>{
     getUsers();
@@ -571,7 +585,29 @@ const Sidebar = () => {
             placeholder='Search chats or messages...' 
           />
          </div>
-        </div>
+
+          {/* Quick Filter Bar */}
+          <div className='flex items-center gap-1.5 mt-3 overflow-x-auto pb-1 no-scrollbar'>
+            {[
+              { id: 'all', label: 'All' },
+              { id: 'direct', label: 'Direct' },
+              { id: 'groups', label: 'Groups' },
+              { id: 'unread', label: 'Unread' }
+            ].map(tab => (
+              <button
+                key={tab.id}
+                onClick={() => setFilterTab(tab.id)}
+                className={`px-3 py-1 rounded-lg text-[11px] font-semibold transition-all cursor-pointer whitespace-nowrap ${
+                  filterTab === tab.id
+                    ? 'bg-[#1C2B3A] text-white border border-[#2D4A6B]/50 shadow-sm'
+                    : 'bg-white/5 text-[#9CA3AF] hover:text-white hover:bg-white/10 border border-transparent'
+                }`}
+              >
+                {tab.label}
+              </button>
+            ))}
+          </div>
+         </div>
 
       {/* Categorized Lists */}
       <div className='flex-1 min-h-0 overflow-y-auto pr-1 mt-4 flex flex-col gap-5 sidebar-scroll'>
