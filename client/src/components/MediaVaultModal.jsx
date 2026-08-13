@@ -31,22 +31,9 @@ const MediaVaultModal = ({ isOpen, onClose, messages, selectedUser }) => {
         });
       }
 
-      // 2. Voice Memos
-      if (msg.text && msg.text.includes('🎙️')) {
-        items.push({
-          id: msg._id,
-          type: 'voice',
-          title: msg.text,
-          sender: senderName,
-          avatar: senderAvatar,
-          date: msg.createdAt
-        });
-      }
-
-      // 3. Code Snippets & Links
+      // 2. Code Snippets & Links
       if (
         msg.text &&
-        !msg.text.includes('🎙️') &&
         (msg.text.includes('http') || msg.text.includes('```') || msg.text.includes('code'))
       ) {
         items.push({
@@ -115,16 +102,6 @@ const MediaVaultModal = ({ isOpen, onClose, messages, selectedUser }) => {
             🖼️ Photos ({vaultItems.filter((i) => i.type === 'image').length})
           </button>
           <button
-            onClick={() => setActiveFilter('voice')}
-            className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer ${
-              activeFilter === 'voice'
-                ? 'border-[#1C2B3A] text-[#1C2B3A] bg-white'
-                : 'border-transparent text-[#6B7280] hover:text-[#1A1A1A]'
-            }`}
-          >
-            🎙️ Voice Notes ({vaultItems.filter((i) => i.type === 'voice').length})
-          </button>
-          <button
             onClick={() => setActiveFilter('link')}
             className={`py-3 px-4 text-xs font-bold border-b-2 transition-all cursor-pointer ${
               activeFilter === 'link'
@@ -158,11 +135,6 @@ const MediaVaultModal = ({ isOpen, onClose, messages, selectedUser }) => {
                       >
                         ⬇️
                       </a>
-                    </div>
-                  ) : item.type === 'voice' ? (
-                    <div className="p-4 bg-red-50/50 flex flex-col gap-2 border-b border-[#E8E8E2]">
-                      <span className="text-xl text-red-500">🎙️</span>
-                      <p className="text-xs font-bold text-red-900 truncate">{item.title}</p>
                     </div>
                   ) : (
                     <div className="p-4 bg-blue-50/50 flex flex-col gap-2 border-b border-[#E8E8E2]">
