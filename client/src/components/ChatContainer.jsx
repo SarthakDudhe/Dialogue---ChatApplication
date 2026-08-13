@@ -3,6 +3,7 @@ import assets from "../assets/assets"
 import { formatMessageTime, formatDateHeader, compressImage } from '../lib/utils'
 import { scanForSecrets } from '../lib/dlpScanner'
 import { translateText } from '../lib/translator'
+import { ROOM_THEMES, getRoomTheme, setRoomTheme } from '../lib/themeManager'
 import AICatchUpModal from './AICatchUpModal'
 import MediaVaultModal from './MediaVaultModal'
 import PinnedMessagesModal from './PinnedMessagesModal'
@@ -45,6 +46,8 @@ const ChatContainer = () => {
   const[isVaultOpen,setIsVaultOpen]=useState(false)
   const[isPinnedModalOpen,setIsPinnedModalOpen]=useState(false)
   const[isPollCreatorOpen,setIsPollCreatorOpen]=useState(false)
+  const[showThemeDropdown,setShowThemeDropdown]=useState(false)
+  const[currentTheme,setCurrentTheme]=useState(ROOM_THEMES[0])
   const[pollVotes,setPollVotes]=useState({})
   const[pinnedIds,setPinnedIds]=useState([])
   const[isOffline,setIsOffline]=useState(!navigator.onLine)
@@ -82,6 +85,13 @@ const ChatContainer = () => {
   const [newGroupName, setNewGroupName] = useState("");
   const [newGroupAvatar, setNewGroupAvatar] = useState("");
   const [selectedAddUsers, setSelectedAddUsers] = useState([]);
+
+  // Sync room theme
+  useEffect(() => {
+    if (selectedUser?._id) {
+      setCurrentTheme(getRoomTheme(selectedUser._id));
+    }
+  }, [selectedUser]);
 
   // Sync pinned messages per room
   useEffect(() => {
@@ -306,9 +316,9 @@ const ChatContainer = () => {
   }, [highlightMessageId, messages]);
 
   return selectedUser ?  (
-    <div className='h-full flex flex-col relative bg-[#F5F5F0] overflow-hidden select-none'>
+    <div className={`h-full flex flex-col relative ${currentTheme.bgClass} transition-colors duration-500 overflow-hidden select-none`}>
       {/* HEADER */}
-      <div className='flex items-center justify-between h-16 px-6 border-b border-[#E8E8E2] bg-[#F5F5F0] flex-shrink-0'>
+      <div className={`flex items-center justify-between h-16 px-6 border-b ${currentTheme.borderClass} ${currentTheme.headerBg} flex-shrink-0 backdrop-blur-md`}>
         <div className='flex items-center gap-3'>
           <div className='relative'>
             <img src={selectedUser.isGroup ? selectedUser.groupAvatar || assets.avatar_icon : selectedUser.profilePic || assets.avatar_icon} className='w-[38px] h-[38px] rounded-full object-cover border border-[#E8E8E2] shadow-sm' />
@@ -327,7 +337,40 @@ const ChatContainer = () => {
             </p>
           </div>
         </div>
-        <div className='flex items-center gap-2.5'>
+        <div className='flex items-center gap-2.5 relative'>
+          {/* Room Theme Selector Dropdown */}
+          <div className="relative">
+            <button
+              onClick={() => setShowThemeDropdown((prev) => !prev)}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E2] text-xs font-bold text-[#1C2B3A] hover:bg-[#1C2B3A] hover:text-white shadow-sm transition-all cursor-pointer"
+              title="Change Room Wallpaper & Accent Theme"
+            >
+              <span>🎨 Theme</span>
+            </button>
+            {showThemeDropdown && (
+              <div className="absolute right-0 top-10 w-48 bg-white border border-[#E8E8E2] rounded-xl shadow-2xl z-50 p-1.5 space-y-1 animate-fade-in text-left">
+                <p className="text-[10px] font-bold text-[#6B7280] uppercase tracking-wider px-2 py-1">Room Wallpaper</p>
+                {ROOM_THEMES.map((theme) => (
+                  <button
+                    key={theme.id}
+                    onClick={() => {
+                      setRoomTheme(selectedUser._id, theme.id);
+                      setCurrentTheme(theme);
+                      setShowThemeDropdown(false);
+                      toast.success(`Theme updated to ${theme.name}!`, { icon: "🎨" });
+                    }}
+                    className={`w-full text-left text-xs px-2.5 py-1.5 rounded-lg flex items-center gap-2 transition-all cursor-pointer ${
+                      currentTheme.id === theme.id ? 'bg-[#1C2B3A] text-white font-bold' : 'hover:bg-[#F5F5F0] text-[#1A1A1A]'
+                    }`}
+                  >
+                    <span className="w-3 h-3 rounded-full border border-black/20" style={{ backgroundColor: theme.preview }}></span>
+                    <span>{theme.name}</span>
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+
           <button 
             onClick={() => setIsCatchUpOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E2] text-xs font-bold text-[#1C2B3A] hover:bg-[#1C2B3A] hover:text-white shadow-sm transition-all cursor-pointer"
