@@ -3,6 +3,7 @@ import assets from "../assets/assets"
 import { formatMessageTime, formatDateHeader, compressImage } from '../lib/utils'
 import { scanForSecrets } from '../lib/dlpScanner'
 import { playSendSound, playReceiveSound, playAlertSound } from '../lib/soundFx'
+import { translateText } from '../lib/translator'
 import AICatchUpModal from './AICatchUpModal'
 import VoiceRecorder from './VoiceRecorder'
 import { ChatContext } from '../../context/ChatContext'
@@ -42,6 +43,7 @@ const ChatContainer = () => {
   const[isCatchUpOpen,setIsCatchUpOpen]=useState(false)
   const[isRecordingVoice,setIsRecordingVoice]=useState(false)
   const[isOffline,setIsOffline]=useState(!navigator.onLine)
+  const[translatedMessages,setTranslatedMessages]=useState({})
   const[showEmojiPicker,setShowEmojiPicker]=useState(false)
   const[contextMenu,setContextMenu]=useState(null)
   const[editingMsg,setEditingMsg]=useState(null)
@@ -375,6 +377,27 @@ const ChatContainer = () => {
                     </svg>
                     Reply
                   </button>
+                  {msg.text && (
+                    <button 
+                      onClick={async () => {
+                        if (translatedMessages[msg._id]) {
+                          const copy = { ...translatedMessages };
+                          delete copy[msg._id];
+                          setTranslatedMessages(copy);
+                        } else {
+                          toast.loading("Translating message...", { id: `tr-${msg._id}` });
+                          const translated = await translateText(msg.text, 'es');
+                          toast.success("Translated to Spanish!", { id: `tr-${msg._id}` });
+                          setTranslatedMessages(prev => ({ ...prev, [msg._id]: translated }));
+                        }
+                      }} 
+                      className='p-1 rounded text-[#6B7280] hover:text-[#1C2B3A] hover:bg-[#F5F5F0] text-[10px] transition-colors cursor-pointer flex items-center gap-1' 
+                      title='Translate'
+                    >
+                      <span>🌐</span>
+                      <span>{translatedMessages[msg._id] ? 'Original' : 'Translate'}</span>
+                    </button>
+                  )}
                   {isSentByMe && (
                     <>
                       <button onClick={()=>handleStartEdit(msg)} className='p-1 rounded text-[#6B7280] hover:text-[#1C2B3A] hover:bg-[#F5F5F0] text-[10px] transition-colors cursor-pointer flex items-center gap-1' title='Edit'>
@@ -460,6 +483,13 @@ const ChatContainer = () => {
                       <p className={`p-3 px-4 text-[13px] leading-relaxed rounded-2xl shadow-sm break-words border text-left transition-all ${isSentByMe ? 'bg-[#1C2B3A] border-transparent text-white rounded-tr-none' : 'bg-white border-[#E8E8E2] text-[#1A1A1A] rounded-tl-none'}`}>
                         {msg.text}
                         {msg.editedAt && <span className={`text-[9px] italic ml-1.5 ${isSentByMe ? 'text-white/70' : 'text-neutral-400'}`}>(edited)</span>}
+                        
+                        {translatedMessages[msg._id] && (
+                          <span className={`block mt-2 pt-2 border-t text-xs font-sans ${isSentByMe ? 'border-white/20 text-blue-100' : 'border-gray-200 text-blue-900 bg-blue-50/70 p-2 rounded-xl'}`}>
+                            <span className="text-[10px] font-bold uppercase tracking-wider block mb-0.5 opacity-80">🌐 Spanish Translation:</span>
+                            {translatedMessages[msg._id]}
+                          </span>
+                        )}
                       </p>
                       
                       {/* Floating Reactions overlay */}
