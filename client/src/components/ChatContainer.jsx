@@ -6,6 +6,7 @@ import { translateText } from '../lib/translator'
 import AICatchUpModal from './AICatchUpModal'
 import MediaVaultModal from './MediaVaultModal'
 import PinnedMessagesModal from './PinnedMessagesModal'
+import PollCreatorModal from './PollCreatorModal'
 import { ChatContext } from '../../context/ChatContext'
 import { AuthContext } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -43,6 +44,8 @@ const ChatContainer = () => {
   const[isCatchUpOpen,setIsCatchUpOpen]=useState(false)
   const[isVaultOpen,setIsVaultOpen]=useState(false)
   const[isPinnedModalOpen,setIsPinnedModalOpen]=useState(false)
+  const[isPollCreatorOpen,setIsPollCreatorOpen]=useState(false)
+  const[pollVotes,setPollVotes]=useState({})
   const[pinnedIds,setPinnedIds]=useState([])
   const[isOffline,setIsOffline]=useState(!navigator.onLine)
   const[translatedMessages,setTranslatedMessages]=useState({})
@@ -351,6 +354,13 @@ const ChatContainer = () => {
               </span>
             )}
           </button>
+          <button 
+            onClick={() => setIsPollCreatorOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E2] text-xs font-bold text-[#1C2B3A] hover:bg-[#1C2B3A] hover:text-white shadow-sm transition-all cursor-pointer"
+            title="Create Poll"
+          >
+            <span>📊 Poll</span>
+          </button>
 
           <button onClick={()=>setSelectedUser(null)} className='md:hidden p-2 rounded-lg hover:bg-black/5 text-[#6B7280] hover:text-[#1A1A1A] transition-all flex items-center justify-center' title='Back'>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
@@ -547,17 +557,80 @@ const ChatContainer = () => {
                           {msg.replyTo.image ? <span>🖼️ Photo</span> : <span className='line-clamp-1 text-[11px]'>{msg.replyTo.text}</span>}
                         </div>
                       )}
-                      <p className={`p-3 px-4 text-[13px] leading-relaxed rounded-2xl shadow-sm break-words border text-left transition-all ${isSentByMe ? 'bg-[#1C2B3A] border-transparent text-white rounded-tr-none' : 'bg-white border-[#E8E8E2] text-[#1A1A1A] rounded-tl-none'}`}>
-                        {msg.text}
-                        {msg.editedAt && <span className={`text-[9px] italic ml-1.5 ${isSentByMe ? 'text-white/70' : 'text-neutral-400'}`}>(edited)</span>}
-                        
-                        {translatedMessages[msg._id] && (
-                          <span className={`block mt-2 pt-2 border-t text-xs font-sans ${isSentByMe ? 'border-white/20 text-blue-100' : 'border-gray-200 text-blue-900 bg-blue-50/70 p-2 rounded-xl'}`}>
-                            <span className="text-[10px] font-bold uppercase tracking-wider block mb-0.5 opacity-80">🌐 Spanish Translation:</span>
-                            {translatedMessages[msg._id]}
-                          </span>
-                        )}
-                      </p>
+                      {msg.text && msg.text.startsWith('📊 POLL:') ? (() => {
+                        try {
+                          const pollData = JSON.parse(msg.text.replace('📊 POLL:', ''));
+                          const votesObj = pollVotes[msg._id] || {};
+                          const totalVotes = Object.keys(votesObj).length;
+                          const userVotedOption = votesObj[authUser?._id];
+
+                          return (
+                            <div className="bg-white border border-[#E8E8E2] rounded-2xl p-4 shadow-sm w-72 md:w-80 text-left text-[#1A1A1A]">
+                              <div className="flex items-center gap-2 mb-2">
+                                <span className="text-base">📊</span>
+                                <h4 className="font-bold text-xs text-[#1C2B3A] leading-snug">{pollData.question}</h4>
+                              </div>
+                              
+                              <div className="space-y-2 mt-3">
+                                {pollData.options.map((opt) => {
+                                  const optionVotes = Object.values(votesObj).filter((v) => v === opt.id).length;
+                                  const percentage = totalVotes > 0 ? Math.round((optionVotes / totalVotes) * 100) : 0;
+                                  const isSelected = userVotedOption === opt.id;
+
+                                  return (
+                                    <div
+                                      key={opt.id}
+                                      onClick={() => {
+                                        setPollVotes((prev) => ({
+                                          ...prev,
+                                          [msg._id]: { ...(prev[msg._id] || {}), [authUser?._id]: opt.id }
+                                        }));
+                                        toast.success("Vote recorded!", { icon: "🗳️" });
+                                      }}
+                                      className={`p-2.5 rounded-xl border transition-all cursor-pointer relative overflow-hidden ${
+                                        isSelected ? 'border-[#1C2B3A] bg-blue-50/50' : 'border-[#E8E8E2] hover:border-gray-300'
+                                      }`}
+                                    >
+                                      {/* Background Progress Bar */}
+                                      <div
+                                        className="absolute left-0 top-0 bottom-0 bg-[#1C2B3A]/10 transition-all duration-500"
+                                        style={{ width: `${percentage}%` }}
+                                      ></div>
+
+                                      <div className="relative z-10 flex justify-between items-center text-xs">
+                                        <span className="font-medium flex items-center gap-1.5 text-[#1A1A1A]">
+                                          {isSelected && <span className="text-[10px]">✔️</span>}
+                                          {opt.text}
+                                        </span>
+                                        <span className="text-[10px] font-bold text-[#6B7280]">{percentage}% ({optionVotes})</span>
+                                      </div>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+
+                              <div className="mt-3 pt-2 border-t border-[#E8E8E2] flex justify-between items-center text-[10px] text-[#9CA3AF]">
+                                <span>{totalVotes} total {totalVotes === 1 ? 'vote' : 'votes'}</span>
+                                <span className="italic font-mono">Encrypted Poll</span>
+                              </div>
+                            </div>
+                          );
+                        } catch (err) {
+                          return <p className="p-3 text-xs">{msg.text}</p>;
+                        }
+                      })() : (
+                        <p className={`p-3 px-4 text-[13px] leading-relaxed rounded-2xl shadow-sm break-words border text-left transition-all ${isSentByMe ? 'bg-[#1C2B3A] border-transparent text-white rounded-tr-none' : 'bg-white border-[#E8E8E2] text-[#1A1A1A] rounded-tl-none'}`}>
+                          {msg.text}
+                          {msg.editedAt && <span className={`text-[9px] italic ml-1.5 ${isSentByMe ? 'text-white/70' : 'text-neutral-400'}`}>(edited)</span>}
+                          
+                          {translatedMessages[msg._id] && (
+                            <span className={`block mt-2 pt-2 border-t text-xs font-sans ${isSentByMe ? 'border-white/20 text-blue-100' : 'border-gray-200 text-blue-900 bg-blue-50/70 p-2 rounded-xl'}`}>
+                              <span className="text-[10px] font-bold uppercase tracking-wider block mb-0.5 opacity-80">🌐 Spanish Translation:</span>
+                              {translatedMessages[msg._id]}
+                            </span>
+                          )}
+                        </p>
+                      )}
                       
                       {/* Floating Reactions overlay */}
                       {msg.reactions && msg.reactions.length>0 && (
@@ -964,6 +1037,15 @@ const ChatContainer = () => {
           if (elem) {
             elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
+        }}
+      />
+
+      {/* Team Poll Creator Modal */}
+      <PollCreatorModal
+        isOpen={isPollCreatorOpen}
+        onClose={() => setIsPollCreatorOpen(false)}
+        onCreatePoll={async (pollText) => {
+          await sendMessage({ text: pollText });
         }}
       />
     </div>
