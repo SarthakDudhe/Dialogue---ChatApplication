@@ -6,6 +6,7 @@ import { playSendSound, playReceiveSound, playAlertSound } from '../lib/soundFx'
 import { translateText } from '../lib/translator'
 import AICatchUpModal from './AICatchUpModal'
 import VoiceRecorder from './VoiceRecorder'
+import MediaVaultModal from './MediaVaultModal'
 import { ChatContext } from '../../context/ChatContext'
 import { AuthContext } from '../../context/AuthContext'
 import toast from 'react-hot-toast'
@@ -41,6 +42,7 @@ const ChatContainer = () => {
   const[input,setInput]=useState('')
   const[dlpWarning,setDlpWarning]=useState(null)
   const[isCatchUpOpen,setIsCatchUpOpen]=useState(false)
+  const[isVaultOpen,setIsVaultOpen]=useState(false)
   const[isRecordingVoice,setIsRecordingVoice]=useState(false)
   const[isOffline,setIsOffline]=useState(!navigator.onLine)
   const[translatedMessages,setTranslatedMessages]=useState({})
@@ -308,13 +310,20 @@ const ChatContainer = () => {
             </p>
           </div>
         </div>
-        <div className='flex items-center gap-3'>
+        <div className='flex items-center gap-2.5'>
           <button 
             onClick={() => setIsCatchUpOpen(true)}
             className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E2] text-xs font-bold text-[#1C2B3A] hover:bg-[#1C2B3A] hover:text-white shadow-sm transition-all cursor-pointer"
             title="AI Catch-Up Matrix"
           >
             <span>⚡ AI Catch Up</span>
+          </button>
+          <button 
+            onClick={() => setIsVaultOpen(true)}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white border border-[#E8E8E2] text-xs font-bold text-[#1C2B3A] hover:bg-[#1C2B3A] hover:text-white shadow-sm transition-all cursor-pointer"
+            title="Media & File Vault"
+          >
+            <span>📁 Vault</span>
           </button>
           <button onClick={()=>setSelectedUser(null)} className='md:hidden p-2 rounded-lg hover:bg-black/5 text-[#6B7280] hover:text-[#1A1A1A] transition-all flex items-center justify-center' title='Back'>
             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth="2" stroke="currentColor" className="w-5 h-5">
@@ -897,6 +906,14 @@ const ChatContainer = () => {
             elem.scrollIntoView({ behavior: 'smooth', block: 'center' });
           }
         }}
+      />
+
+      {/* Media & File Vault Modal */}
+      <MediaVaultModal
+        isOpen={isVaultOpen}
+        onClose={() => setIsVaultOpen(false)}
+        messages={messages}
+        selectedUser={selectedUser}
       />
     </div>
   ):(
